@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>음악산업 영어 타임어택 퀴즈</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', AppleSDGothicNeo-Regular, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            display: flex; justify-content: center; align-items: center; padding: 20px; color: #333;
+        }
+        .container {
+            background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            max-width: 600px; width: 100%; padding: 30px; animation: fadeIn 0.5s ease-out;
+            min-height: 580px; position: relative; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        h1 { text-align: center; color: #1a1a2e; font-size: 1.5em; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 0.8em; letter-spacing: 1px; }
+        
+        #start-screen { text-align: center; }
+        .start-msg { font-size: 1.2em; font-weight: bold; margin-bottom: 30px; color: #1a1a2e; line-height: 1.5; }
+        
+        .main-progress { width: 100%; height: 6px; background: #eee; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+        .main-fill { height: 100%; background: #e94560; width: 0%; transition: width 0.3s ease; }
+        
+        .limit-bar-container { width: 100%; height: 4px; background: #eee; margin-bottom: 20px; display: none; }
+        .limit-bar-fill { height: 100%; background: #e74c3c; width: 100%; }
+
+        .info-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; color: #666; font-size: 0.85em; }
+        
+        .question-box { background: #fdfdfd; padding: 40px 20px; border-radius: 15px; margin-bottom: 20px; text-align: center; border: 2px solid #e94560; }
+        .question-text { font-size: 1.8em; color: #1a1a2e; font-weight: bold; word-break: keep-all; }
+        
+        .options { display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
+        .option {
+            padding: 14px 20px; background: #fff; border: 2px solid #eee; border-radius: 10px;
+            cursor: pointer; transition: all 0.2s ease; font-size: 0.95em; text-align: left;
+        }
+        .option:hover { border-color: #e94560; background: #fff5f6; }
+        .option.correct { background: #2ecc71 !important; color: white; border-color: #2ecc71; }
+        .option.incorrect { background: #e74c3c !important; color: white; border-color: #e74c3c; }
+        .option.disabled { pointer-events: none; }
+        
+        .status-msg-text { text-align: center; color: #e94560; font-weight: bold; margin-top: 10px; height: 20px; }
+        .timeout-msg { color: #e74c3c; font-weight: bold; text-align: center; }
+
+        .result-screen { text-align: center; display: none; padding: 40px 0; }
+        .score-display { font-size: 5em; font-weight: bold; color: #e94560; margin: 15px 0; }
+        .btn-action { width: 100%; padding: 16px; background: #e94560; color: white; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+        .btn-action:hover { background: #c62842; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen">
+        <h1>🎹 MUSIC QUIZ</h1>
+        <p class="subtitle">KOREAN to ENGLISH MODE</p>
+        <div class="start-msg">한글 용어를 보고 알맞은<br>영어 표현을 고르세요!</div>
+        <button class="btn-action" onclick="startQuiz()">시작하기</button>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+        <h1>⚡ ENGLISH TERMINOLOGY</h1>
+        <p class="subtitle">뜻 확인(3초) → 영어 선택(2.2초 제한)</p>
+        
+        <div class="main-progress"><div class="main-fill" id="main-fill"></div></div>
+        <div class="limit-bar-container" id="limit-container"><div class="limit-bar-fill" id="limit-fill"></div></div>
+        
+        <div class="info-header">
+            <span>문항 <span id="current-idx">1</span> / 10</span>
+            <span>점수: <span id="current-score">0</span></span>
+        </div>
+
+        <div class="question-box">
+            <div class="question-text" id="question-text">준비하세요!</div>
+        </div>
+
+        <div id="status-msg" class="status-msg-text"></div>
+        <div class="options" id="options-container"></div>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h1>테스트 종료</h1>
+        <div class="score-display" id="final-score">0</div>
+        <p id="score-message" style="margin-bottom: 30px; font-weight: 500;"></p>
+        <button class="btn-action" onclick="startQuiz()">다시 도전하기</button>
+    </div>
+</div>
+
+<script>
+    const dictionary = [
+        { english: "Sound Recording / Phonogram", korean: "음반" },
+        { english: "Public Performance Right", korean: "공연권" },
+        { english: "Performance Right", korean: "실연권" },
+        { english: "Copyright Holder / Rightsholder", korean: "저작권자" },
+        { english: "Record Producer", korean: "음반 제작자" },
+        { english: "Licensing", korean: "라이선싱" },
+        { english: "Related Rights / Neighboring Rights", korean: "저작인접권" },
+        { english: "Reproduction Right", korean: "복제권" },
+        { english: "Tariffs / Rates", korean: "요율" },
+        { english: "Collective Management Org", korean: "집중관리단체(CMO)" },
+        { english: "Copyright Infringement", korean: "저작권 침해" },
+        { english: "Digital Service Provider", korean: "디지털 서비스 제공자" },
+        { english: "Making Available Right", korean: "전송권 (이용에 제공할 권리)" },
+        { english: "Physical Sales", korean: "음반 판매" },
+        { english: "Music Publisher", korean: "음악 출판사" },
+        { english: "Lyricist", korean: "작사가" },
+        { english: "Synchronization", korean: "싱크권" },
+        { english: "Exclusive Rights", korean: "독점적 권리" },
+        { english: "Remuneration / Compensation", korean: "보상금 (보수)" },
+        { english: "Compulsory Licensing", korean: "법정 허락 (강제 허락)" },
+        { english: "Voluntary Licensing", korean: "자발적 라이선싱" },
+        { english: "Bilateral Negotiation", korean: "개별 협상 (양자 협상)" },
+        { english: "Extended Collective Licensing", korean: "확장적 집중허락 (ECL)" },
+        { english: "Private Copying Levy", korean: "사적 복제 보상금" },
+        { english: "Subscription Users", korean: "유료 구독자" },
+        { english: "Ad-supported Streaming", korean: "광고 기반 스트리밍" },
+        { english: "Subscription Streaming", korean: "구독 기반 스트리밍" },
+        { english: "Broadcasting Right", korean: "방송권" },
+        { english: "Retransmission Right", korean: "재전송권" },
+        { english: "Derivative Work", korean: "파생저작물" },
+        { english: "Moral Rights", korean: "인격권" },
+        { english: "Right of Paternity / Attribution", korean: "성명권" },
+        { english: "Right of Publicity / Likeness", korean: "초상권" },
+        { english: "Public Performance Income Per Capita", korean: "1인당 공연권 수익" },
+        { english: "Tariff Proposals", korean: "요율 제안" },
+        { english: "Equitable Remuneration", korean: "합리적 보상" },
+        { english: "Berne Convention", korean: "베른 협약" },
+        { english: "WPPT", korean: "WIPO 실연 및 음반 조약" },
+        { english: "Revenue Share", korean: "수익 배분" },
+        { english: "Reservation of Rights", korean: "권리 유보" },
+        { english: "Market Cannibalization", korean: "시장 잠식" },
+        { english: "Physical Format", korean: "실물 음반 (CD, LP)" },
+        { english: "Advance Payments", korean: "선불금 (어드밴스)" },
+        { english: "Calculation of Damages", korean: "손해배상액 산정" },
+        { english: "Statutory Damages", korean: "법정 손해배상" },
+        { english: "Injunction", korean: "금지 명령 (인정션)" },
+        { english: "Terms of Service", korean: "이용 약관 (ToS)" },
+        { english: "EULA", korean: "최종 사용자 라이선스 계약" },
+        { english: "Fixed Royalty Rate", korean: "고정 요율" },
+        { english: "Performance Rights Org", korean: "공연 단체 (PRO)" },
+        { english: "Music Licensing Company", korean: "음악라이선싱업체 (MLC)" },
+        { english: "Catalogue Value", korean: "카탈로그 가치" },
+        { english: "Download Sales", korean: "다운로드 판매" },
+        { english: "Incidental Copying", korean: "부수적 복제" },
+        { english: "Private Use", korean: "사적 이용" },
+        { english: "Fair Use", korean: "공정 이용" },
+        { english: "Temporary/Transient Copying", korean: "일시적 복제" },
+        { english: "Permanent Copy", korean: "영구적 복제" },
+        { english: "Making Available Violation", korean: "전송권 침해" },
+        { english: "Stream Ripping Site", korean: "불법 추출 사이트" },
+        { english: "Cyberlocker", korean: "사이버로커" },
+        { english: "Circumvention", korean: "우회 조치 (TPM 우회)" },
+        { english: "Technical Protection Measures", korean: "기술적 보호 조치 (TPM)" },
+        { english: "Primary Liability", korean: "일차적 책임" },
+        { english: "Secondary Liability", korean: "이차적 책임 (간접 책임)" },
+        { english: "Safe Harbor", korean: "면책 조항 (세이프 하버)" },
+        { english: "Intellectual Property", korean: "지식 재산권 (IP)" },
+        { english: "Copyrighted Work", korean: "저작물" },
+        { english: "Fixation", korean: "고정" },
+        { english: "Master Recording", korean: "원본 녹음 (마스터)" },
+        { english: "Musical Work", korean: "음악 작품 (악곡)" },
+        { english: "Communication to the Public", korean: "공중 전달권" },
+        { english: "Rental Right", korean: "렌털권 (대여권)" },
+        { english: "Distribution Right", korean: "배포권" },
+        { english: "Display Right", korean: "전시권" },
+        { english: "Right of Attribution", korean: "성명표시권" },
+        { english: "Right of Integrity", korean: "동일성유지권" },
+        { english: "Right of First Publication", korean: "공표권" },
+        { english: "Transformative Use", korean: "변형적 이용" },
+        { english: "Commercial Use", korean: "상업적 이용" },
+        { english: "Non-commercial Use", korean: "비상업적 이용" },
+        { english: "Market Substitution", korean: "시장 대체" },
+        { english: "Unreasonable Prejudice", korean: "부당한 저해" },
+        { english: "Normal Exploitation", korean: "통상적인 이용" },
+        { english: "Legitimate Source", korean: "적법한 소스" },
+        { english: "Unauthorized Source", korean: "불법 소스" },
+        { english: "Transaction Costs", korean: "거래 비용" },
+        { english: "Antitrust Law", korean: "반독점법" },
+        { english: "Consumer Welfare", korean: "소비자 복리" },
+        { english: "Recouping Investment", korean: "투자 회수" },
+        { english: "Sunk Costs", korean: "매몰 비용" },
+        { english: "Risky Investment", korean: "위험 투자" },
+        { english: "Gross Value Added", korean: "부가가치 (GVA)" },
+        { english: "Blanket License", korean: "일괄 라이선스" },
+        { english: "Mechanical Rights", korean: "기계복제권 (메카니컬)" },
+        { english: "Reproduction Levy", korean: "복제 보상금" },
+        { english: "Digital Single Market", korean: "디지털 싱글 마켓 (DSM)" },
+        { english: "CMI", korean: "권리 관리 정보" },
+        { english: "Digital Fingerprinting", korean: "디지털 지문" },
+        { english: "Automated Content Recognition", korean: "자동 콘텐츠 인식 (ACR)" },
+        { english: "Rights Database", korean: "권리 정보 데이터베이스" },
+        { english: "ISWC", korean: "국제표준음악작품코드" },
+        { english: "Human Artistry Campaign", korean: "아티스트 권리 캠페인" },
+        { english: "Moral Rights Protection", korean: "인격권 보호" },
+        { english: "Misappropriation of Name", korean: "성명권 침해" },
+        { english: "Misappropriation of Likeness", korean: "초상권 침해" },
+        { english: "Diffuse Ownership", korean: "권리 파편화" },
+        { english: "Rights Aggregator", korean: "권리 집합체" },
+        { english: "Digital Distributor", korean: "디지털 유통사" },
+        { english: "Music Service Provider", korean: "음악 서비스 제공자" },
+        { english: "Public Performance Venues", korean: "공연 장소" },
+        { english: "Recognition / Fame", korean: "대중 인지도" },
+        { english: "Damage to Reputation", korean: "평판 훼손" },
+        { english: "Transparency Obligation", korean: "투명성 의무" },
+        { english: "Record-keeping Obligation", korean: "기록 보존 의무" },
+        { english: "Presumption of Infringement", korean: "침해 간주" },
+        { english: "Burden of Proof", korean: "입증 책임" },
+        { english: "Allocation of Liability", korean: "책임 배분" },
+        { english: "FRAND Terms", korean: "비차별적 조건" },
+        { english: "Fair Rate Setting", korean: "합리적 요율 산정" },
+        { english: "Freedom of Contract", korean: "계약 자유" },
+        { english: "Administrative Burden", korean: "행정적 부담" },
+        { english: "Music SMEs / Startups", korean: "중소기업/스타트업" },
+        { english: "Dominant Firm", korean: "지배적 사업자" },
+        { english: "Barrier to Entry", korean: "진입 장벽" },
+        { english: "Vertical Integration", korean: "수직적 통합" },
+        { english: "Unfair Practice", korean: "불공정 거래 행위" },
+        { english: "BM Innovation", korean: "비즈니스 모델 혁신" },
+        { english: "Regional Tariffs", korean: "지역별 차등 요율" },
+        { english: "Stakeholder", korean: "이해관계자" },
+        { english: "Policy Recommendation", korean: "정책 제안" },
+        { english: "Legislative Debate", korean: "입법 논의" },
+        { english: "International Harmonization", korean: "국제 조화" },
+        { english: "Mutual Recognition", korean: "상호 인정" },
+        { english: "Transparency Report", korean: "투명성 보고서" },
+        { english: "Post-licensing Monitoring", korean: "사후 모니터링" },
+        { english: "Statement of Account", korean: "정산 보고서" },
+        { english: "Piracy Tools", korean: "불법 다운로드 도구" },
+        { english: "Copyright Awareness", korean: "저작권 인식 교육" },
+        { english: "Overseas Revenue", korean: "해외 매출 (수출)" },
+        { english: "Physical Units", korean: "실물 판매량" },
+        { english: "Digital Units", korean: "디지털 판매량" },
+        { english: "Ad Revenue Share", korean: "광고 수익 배분" },
+        { english: "ARPU", korean: "유료 가입자당 수익" },
+        { english: "Reproduction Permission", korean: "복제 허락" },
+        { english: "Performance Permission", korean: "공연 허락" },
+        { english: "Broadcasting Permission", korean: "방송 허락" },
+        { english: "Making Available Permission", korean: "전송 허락" },
+        { english: "Compulsory License Conditions", korean: "강제 허락 요건" },
+        { english: "Justification", korean: "정당한 사유" },
+        { english: "Non-expressive Use", korean: "비표현적 이용" },
+        { english: "Expressive Use", korean: "표현적 이용" },
+        { english: "Potential Market Value", korean: "잠재적 시장 가치" },
+        { english: "Market Dilution", korean: "시장 가치 희석" },
+        { english: "Substantial Similarity", korean: "실질적 유사성" },
+        { english: "Substantial/Heart of the Work", korean: "본질적 부분" },
+        { english: "Unpublished Work", korean: "미발표 저작물" },
+        { english: "Factual Work", korean: "사실적 저작물" },
+        { english: "Highly Creative Work", korean: "창작적 저작물" },
+        { english: "Functional Elements", korean: "기능적 요소" },
+        { english: "Interoperability", korean: "상호운용성" },
+        { english: "Access to Information", korean: "정보 접근성" },
+        { english: "Public Benefit", korean: "공적 이익" },
+        { english: "Class Action Lawsuit", korean: "집단 소송" },
+        { english: "Settlement Agreement", korean: "화해 계약" },
+        { english: "Default Judgment", korean: "디폴트 판결 (궐석 재판)" },
+        { english: "Case Law", korean: "판례법" },
+        { english: "Explicit Provision", korean: "명문 규정" },
+        { english: "Legislative Solution", korean: "입법적 해결" },
+        { english: "Self-regulation", korean: "자율 규제" },
+        { english: "Code of Practice", korean: "행동 강령" },
+        { english: "Certification", korean: "인증제도" },
+        { english: "Cultural Heritage Institution", korean: "문화유산기관" },
+        { english: "Nonprofit Research Org", korean: "비영리 연구기관" },
+        { english: "Library/Museum Exception", korean: "도서관/박물관 예외" },
+        { english: "Data Laundering", korean: "데이터 세탁" },
+        { english: "Original Data Ownership", korean: "원천 데이터 소유권" },
+        { english: "Right to Deny License", korean: "라이선스 거부권" },
+        { english: "Standardized Identifiers", korean: "표준 식별자" },
+        { english: "Rights Verification", korean: "권리 확인 프로세스" },
+        { english: "Post-hoc Payment System", korean: "사후 정산 시스템" },
+        { english: "Bulk Rights Reservation", korean: "일괄 권리 예약" },
+        { english: "Rights Declaration Platform", korean: "권리 선언 플랫폼" },
+        { english: "Performers' Association", korean: "연주자 협회" },
+        { english: "Producers' Association", korean: "음반 제작자 협회" },
+        { english: "Performers' Federation", korean: "음악 실연자 연합회" },
+        { english: "Project Profitability", korean: "프로젝트 수익성" },
+        { english: "Cost of Flops", korean: "실패 비용" },
+        { english: "Market Size Estimation", korean: "시장 규모 추산" },
+        { english: "Piracy Pathway", korean: "불법 복제 경로" },
+        { english: "Legitimate Pathway", korean: "합법적 경로" },
+        { english: "Venue Licensing", korean: "공연장 라이선싱" },
+        { english: "Back Catalogue", korean: "구보" },
+        { english: "Frontline", korean: "신보" },
+        { english: "Genre-based Analysis", korean: "장르별 분석" },
+        { english: "Distribution Agreement", korean: "유통 계약" },
+        { english: "Split Rate", korean: "수익 분배율" },
+        { english: "Minimum Guarantee", korean: "최소 보장금" },
+        { english: "Exclusive License", korean: "독점적 라이선스" },
+        { english: "Non-exclusive License", korean: "비독점적 라이선스" },
+        { english: "Sub-license", korean: "서브 라이선스" },
+        { english: "Primary Rightsholder", korean: "원권리자" },
+        { english: "Assignment of Rights", korean: "권리 양도" },
+        { english: "Transfer of Rights", korean: "권리 이전" },
+        { english: "Trust Management", korean: "신탁 관리" },
+        { english: "Agency / Mediation", korean: "대리 중개" },
+        { english: "Collection Rules", korean: "징수 규정" },
+        { english: "Distribution Rules", korean: "분배 규정" },
+        { english: "Administration Fee", korean: "관리 수수료" },
+        { english: "Broadcasting Royalty", korean: "방송 사용료" },
+        { english: "Retransmission Royalty", korean: "재전송 사용료" },
+        { english: "Digital Per Unit Price", korean: "디지털 음원 단가" },
+        { english: "ARPU", korean: "가입자당 평균 수익" },
+        { english: "Revenue per Impression", korean: "광고 노출당 수익" },
+        { english: "Ad Inventory Share", korean: "광고 점유율" },
+        { english: "Platform Fee", korean: "플랫폼 수수료" },
+        { english: "Subscription Service", korean: "정액제 서비스" },
+        { english: "Pay-per-use Service", korean: "종량제 서비스" },
+        { english: "Free Trial Period", korean: "무료 체험 기간" },
+        { english: "Bundle Package", korean: "번들 상품" },
+        { english: "Family Plan", korean: "가족 요금제" },
+        { english: "Localization Strategy", korean: "지역화 전략" },
+        { english: "Rights Clearance", korean: "권리 관계 확인" },
+        { english: "Renewal Period", korean: "라이선스 갱신 기간" },
+        { english: "Termination Clause", korean: "계약 해지 조건" },
+        { english: "Penalties", korean: "위약금" },
+        { english: "Force Majeure", korean: "불가항력 조항" },
+        { english: "Jurisdiction", korean: "관할권" },
+        { english: "Governing Law", korean: "준거법" },
+        { english: "Arbitration", korean: "중재 제도" },
+        { english: "Mediation and Settlement", korean: "조정 및 화해" },
+        { english: "Preservation of Evidence", korean: "증거 보전" },
+        { english: "Notice of Infringement", korean: "침해 통지" },
+        { english: "Takedown Request", korean: "삭제 요청" },
+        { english: "Repeat Infringer Policy", korean: "반복 침해자 정책" },
+        { english: "Exemption from Liability", korean: "책임 면제" },
+        { english: "Good Faith Use", korean: "선의의 이용" },
+        { english: "Willful Infringement", korean: "악의적 침해" },
+        { english: "Punitive Damages", korean: "징벌적 손해배상" },
+        { english: "Restitution of Unjust Enrichment", korean: "부당 이득 반환" },
+        { english: "Price Elasticity", korean: "가격 탄력성" },
+        { english: "Consumer Surplus", korean: "소비자 잉여" },
+        { english: "Producer Surplus", korean: "생산자 잉여" },
+        { english: "Externality", korean: "외부 효과" },
+        { english: "Public Good Character", korean: "공공재적 성격"},
+        { english: "Non-rivalry", korean: "비경합성" },
+        { english: "Non-excludability", korean: "비배제성" },
+        { english: "Right to Enjoy Culture", korean: "문화 향유권" },
+        { english: "Freedom of Expression", korean: "표현의 자유" },
+        { english: "Information Asymmetry", korean: "정보 비대칭성" },
+        { english: "Transaction Transparency", korean: "거래 투명성" },
+        { english: "Commercial Rental", korean: "상업적 대여" },
+        { english: "Non-profit Lending", korean: "비영리 대여" },
+        { english: "Normal Practice", korean: "통상적인 관행" },
+        { english: "Rising Production Costs", korean: "제작비 상승" },
+        { english: "Marketing Cost Ratio", korean: "마케팅비 비중" },
+        { english: "Artist Royalty Rate", korean: "아티스트 로열티율" },
+        { english: "Producer Margin", korean: "제작자 수익률" },
+        { english: "Distribution Fee Rate", korean: "유통사 수수료율" },
+        { english: "Settlement Cycle", korean: "정산 주기" },
+        { english: "Unclaimed Royalties", korean: "미정산 로열티" },
+        { english: "Lack of Rights Information", korean: "권리 정보 부재" },
+        { english: "Data Standardization", korean: "데이터 표준화" },
+        { english: "Data Interoperability", korean: "데이터 상호운용성" },
+        { english: "Global Rights Database", korean: "글로벌 권리 데이터베이스" },
+        { english: "Enhancing Transparency", korean: "투명성 제고" },
+        { english: "Promoting Fair Trade", korean: "공정 거래 촉진" },
+        { english: "Creator Protection", korean: "창작자 보호" },
+        { english: "Supporting Small Rightsholders", korean: "중소 권리자 지원" },
+        { english: "Fandom Economy", korean: "팬덤 경제" },
+        { english: "Fan Community Platform", korean: "팬 커뮤니티 플랫폼" },
+        { english: "Merchandise Revenue", korean: "굿즈 매출" },
+        { english: "Live Performance Revenue", korean: "공연 매출" },
+        { english: "Tour Revenue", korean: "투어 수익" },
+        { english: "Ambassador Activity", korean: "엠배서더 활동" },
+        { english: "Likeness Licensing", korean: "초상권 라이선싱" },
+        { english: "Virtual Artist", korean: "가상 아티스트" },
+        { english: "Metaverse Performance", korean: "메타버스 공연" },
+        { english: "Digital Collectibles", korean: "디지털 수집품" },
+        { english: "Blockchain-based Settlement", korean: "블록체인 기반 정산" },
+        { english: "Direct-to-Consumer (D2C)", korean: "직접 팬 거래" },
+        { english: "Artist Mental Health", korean: "아티스트 정신 건강" },
+        { english: "Fair Contract Guidelines", korean: "공정 계약 가이드라인" },
+        { english: "Standard Contract", korean: "표준 계약서" },
+        { english: "Unfair Long-term Contract", korean: "노예 계약 논란" },
+        { english: "Opacity in Accounting", korean: "정산 불투명성" },
+        { english: "Revenue Concentration", korean: "수익 편중 현상" },
+        { english: "Value-added Induction Effect", korean: "부가가치 유발 효과" },
+        { english: "Employment Induction Effect", korean: "고용 유발 효과" },
+        { english: "Input-Output Analysis", korean: "산업 연관 분석" },
+        { english: "Spillover Effect", korean: "파급 효과" },
+        { english: "Shared Growth", korean: "동반 성장" },
+        { english: "Sustainable Development", korean: "지속 가능한 발전" },
+        { english: "Anti-piracy Campaign", korean: "저작권 보호 캠페인" },
+        { english: "Copyright Law Revision Debate", korean: "저작권법 개정 논의" },
+        { english: "Term of Protection", korean: "권리 보호 기간" },
+        { english: "Post-mortem 70 Years", korean: "사후 70년 보호" },
+        { english: "Works for Hire", korean: "법인 저작물" },
+        { english: "Works in the Course of Employment", korean: "업무상 저작물" },
+        { english: "Copyright Registration", korean: "저작권 등록 제도" },
+        { english: "Copyright Notarization", korean: "저작권 공증" },
+        { english: "Legal Presumption", korean: "법적 추정력" },
+        { english: "Right to Demand Cessation", korean: "침해 정지 청구권" },
+        { english: "Criminal Penalty", korean: "형사 처벌" },
+        { english: "Fines and Penalties", korean: "벌금 및 과태료" },
+        { english: "Joint Liability Provision", korean: "양벌 규정" },
+        { english: "MCST", korean: "문화체육관광부" },
+        { english: "KIPO", korean: "특허청" },
+        { english: "WIPO", korean: "세계지식재산기구" },
+        { english: "SCAPR", korean: "음악 실연자 협회" },
+        { english: "Reciprocal Representation Agreement", korean: "상호관리계약" },
+        { english: "DRM (Business Perspective)", korean: "디지털 권리 관리" },
+        { english: "Copyright Education", korean: "저작권 교육 프로그램" }
+    ];
+
+    let currentQuestions = [];
+    let idx = 0;
+    let score = 0;
+    let isAnswered = false;
+    let mainTimer, limitTimer;
+
+    function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
+
+    function startQuiz() {
+        score = 0; idx = 0;
+        currentQuestions = shuffle([...dictionary]).slice(0, 10);
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        isAnswered = false;
+        const q = currentQuestions[idx];
+        const statusMsg = document.getElementById('status-msg');
+        const optionsContainer = document.getElementById('options-container');
+        const limitContainer = document.getElementById('limit-container');
+
+        document.getElementById('current-idx').innerText = idx + 1;
+        document.getElementById('current-score').innerText = score;
+        document.getElementById('question-text').innerText = q.korean;
+        document.getElementById('main-fill').style.width = `${(idx + 1) * 10}%`;
+        
+        optionsContainer.innerHTML = '';
+        limitContainer.style.display = 'none';
+        statusMsg.innerHTML = `영단어를 떠올려보세요... (3초)`;
+
+        mainTimer = setTimeout(() => {
+            statusMsg.innerHTML = '';
+            renderOptions(q);
+        }, 3000);
+    }
+
+    function renderOptions(q) {
+        const container = document.getElementById('options-container');
+        const limitContainer = document.getElementById('limit-container');
+        const limitFill = document.getElementById('limit-fill');
+        
+        limitContainer.style.display = 'block';
+        limitFill.style.width = '100%';
+        limitFill.style.transition = 'none';
+
+        const others = dictionary.filter(item => item.english !== q.english);
+        const distractors = shuffle(others).slice(0, 3).map(item => item.english);
+        const options = shuffle([q.english, ...distractors]);
+
+        options.forEach((opt, i) => {
+            const div = document.createElement('div');
+            div.className = 'option';
+            div.innerText = `${String.fromCharCode(65 + i)}. ${opt}`;
+            div.onclick = () => handleSelect(div, opt, q.english);
+            container.appendChild(div);
+        });
+
+        setTimeout(() => {
+            limitFill.style.transition = 'width 2.2s linear';
+            limitFill.style.width = '0%';
+        }, 10);
+
+        limitTimer = setTimeout(() => {
+            if (!isAnswered) handleTimeout(q.english);
+        }, 2200);
+    }
+
+    function handleSelect(el, selected, actual) {
+        if(isAnswered) return;
+        clearTimeout(limitTimer);
+        isAnswered = true;
+        
+        const all = document.querySelectorAll('.option');
+        all.forEach(o => o.classList.add('disabled'));
+        
+        if(selected === actual) {
+            el.classList.add('correct');
+            score += 10;
+        } else {
+            el.classList.add('incorrect');
+            all.forEach(o => { if(o.innerText.includes(actual)) o.classList.add('correct'); });
+        }
+        goNext();
+    }
+
+    function handleTimeout(actual) {
+        isAnswered = true;
+        const all = document.querySelectorAll('.option');
+        all.forEach(o => {
+            o.classList.add('disabled');
+            if(o.innerText.includes(actual)) o.classList.add('correct');
+        });
+        document.getElementById('status-msg').innerHTML = `<div class="timeout-msg">⏰ TIME OUT!</div>`;
+        goNext();
+    }
+
+    function goNext() {
+        setTimeout(() => {
+            if (idx < 9) {
+                idx++;
+                showQuestion();
+            } else {
+                showResult();
+            }
+        }, 1200);
+    }
+
+    function showResult() {
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = score;
+        
+        let msg = score === 100 ? "⚡ 완벽합니다! 음악산업 영어 마스터시군요!" : 
+                  score >= 70 ? "🔥 대단해요! 실무 역량이 아주 뛰어납니다." : 
+                  "📚 다시 시도하여 단어들을 완전히 익혀보세요!";
+        document.getElementById('score-message').innerText = msg;
+    }
+</script>
+</body>
+</html>
